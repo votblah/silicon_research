@@ -100,6 +100,11 @@ void printHelp() {
     "\n"
     "    --roi          - Enable ROI\n"
     "    --roi-qp [QP]  - ROI quality points              (Default: 20)\n"
+    "\n"
+    "    --max-qp\n"
+    "    --min-qp\n"
+    "    --max-iqp\n"
+    "    --min-iqp\n"
     "\n", __DATE__
   );
 }
@@ -160,6 +165,11 @@ int main(int argc, const char* argv[]) {
   int image_mirror = HI_FALSE;
   int image_flip = HI_FALSE;
   uint16_t roi_qp = 20;
+
+  uint32_t max_qp = 0;
+  uint32_t min_qp = 0;
+  uint32_t max_i_qp = 0;
+  uint32_t min_i_qp = 0;
 
   PAYLOAD_TYPE_E rc_codec = PT_H264;
   int rc_mode = VENC_RC_MODE_H264AVBR;
@@ -363,6 +373,26 @@ int main(int argc, const char* argv[]) {
 
   __OnArgument("--roi-qp") {
     roi_qp = atoi(__ArgValue);
+    continue;
+  }
+
+  __OnArgument("--max-qp") {
+    max_qp = atoi(__ArgValue);
+    continue;
+  }
+
+  __OnArgument("--min-qp") {
+    min_qp = atoi(__ArgValue);
+    continue;
+  }
+
+  __OnArgument("--max-iqp") {
+    max_i_qp = atoi(__ArgValue);
+    continue;
+  }
+
+  __OnArgument("--min-iqp") {
+    min_i_qp = atoi(__ArgValue);
     continue;
   }
 
@@ -900,6 +930,10 @@ int main(int argc, const char* argv[]) {
 
     case VENC_RC_MODE_H265CBR:
       rc_param.stParamH265Cbr.s32MaxReEncodeTimes = 0;
+      if (max_qp > 0) rc_param.stParamH265Cbr.u32MaxQp = max_qp;
+      if (min_qp > 0) rc_param.stParamH265Cbr.u32MinQp = min_qp;
+      if (max_i_qp > 0) rc_param.stParamH265Cbr.u32MaxIQp = max_i_qp;
+      if (min_i_qp > 0) rc_param.stParamH265Cbr.u32MinIQp = min_i_qp;
       break;
   }
 
@@ -918,6 +952,12 @@ int main(int argc, const char* argv[]) {
     rc_param.stSceneChangeDetect.bDetectSceneChange ? "YES" : "NO",
     rc_param.stSceneChangeDetect.bAdaptiveInsertIDRFrame ? "YES" : "NO",
     rc_param.s32FirstFrameStartQp, rc_param.u32RowQpDelta);
+
+  if (rc_mode == VENC_RC_MODE_H265CBR) {
+    printf("> H265Cbr MaxQp = %u, MinQp = %u, MaxIQp = %u, MinIQp = %u\n",
+    rc_param.stParamH265Cbr.u32MaxQp, rc_param.stParamH265Cbr.u32MinQp,
+    rc_param.stParamH265Cbr.u32MaxIQp, rc_param.stParamH265Cbr.u32MinIQp);
+  }
 
   // Enable slices (not available in frame mode)
   switch (rc_codec) {
