@@ -105,6 +105,8 @@ void printHelp() {
     "    --min-qp\n"
     "    --max-iqp\n"
     "    --min-iqp\n"
+    "    --max_iprop\n"
+    "    --min_iprop\n"
     "\n", __DATE__
   );
 }
@@ -170,6 +172,8 @@ int main(int argc, const char* argv[]) {
   uint32_t min_qp = 0;
   uint32_t max_i_qp = 0;
   uint32_t min_i_qp = 0;
+  uint32_t max_i_prop = 0;
+  uint32_t min_i_prop = 0;
 
   PAYLOAD_TYPE_E rc_codec = PT_H264;
   int rc_mode = VENC_RC_MODE_H264AVBR;
@@ -393,6 +397,16 @@ int main(int argc, const char* argv[]) {
 
   __OnArgument("--min-iqp") {
     min_i_qp = atoi(__ArgValue);
+    continue;
+  }
+
+  __OnArgument("--max_iprop") {
+      max_i_prop = atoi(__ArgValue);
+    continue;
+  }
+
+  __OnArgument("--min_iprop") {
+      min_i_prop = atoi(__ArgValue);
     continue;
   }
 
@@ -934,6 +948,8 @@ int main(int argc, const char* argv[]) {
       if (min_qp > 0) rc_param.stParamH265Cbr.u32MinQp = min_qp;
       if (max_i_qp > 0) rc_param.stParamH265Cbr.u32MaxIQp = max_i_qp;
       if (min_i_qp > 0) rc_param.stParamH265Cbr.u32MinIQp = min_i_qp;
+      if (max_i_prop > 0) rc_param.stParamH265Cbr.u32MaxIprop = max_i_prop;
+      if (min_i_prop > 0) rc_param.stParamH265Cbr.u32MinIprop = min_i_prop;
       break;
   }
 
@@ -954,9 +970,10 @@ int main(int argc, const char* argv[]) {
     rc_param.s32FirstFrameStartQp, rc_param.u32RowQpDelta);
 
   if (rc_mode == VENC_RC_MODE_H265CBR) {
-    printf("> H265Cbr MaxQp = %u, MinQp = %u, MaxIQp = %u, MinIQp = %u\n",
+    printf("> H265Cbr MaxQp = %u, MinQp = %u, MaxIQp = %u, MinIQp = %u, MaxIprop = %u, MinIprop = %u\n",
     rc_param.stParamH265Cbr.u32MaxQp, rc_param.stParamH265Cbr.u32MinQp,
-    rc_param.stParamH265Cbr.u32MaxIQp, rc_param.stParamH265Cbr.u32MinIQp);
+    rc_param.stParamH265Cbr.u32MaxIQp, rc_param.stParamH265Cbr.u32MinIQp,
+    rc_param.stParamH265Cbr.u32MaxIprop, rc_param.stParamH265Cbr.u32MinIprop);
   }
 
   // Enable slices (not available in frame mode)
