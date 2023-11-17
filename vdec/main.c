@@ -173,6 +173,7 @@ double getTimeInterval(struct timespec* timestamp, struct timespec* last_meansur
 uint16_t mavlink_port = 14550;
 uint32_t vo_width = 1280;
 uint32_t vo_height = 720;
+uint32_t stream_frames = 0;
 
 int main(int argc, const char* argv[]) {
   VO_INTF_SYNC_E vo_mode = VO_OUTPUT_720P60;
@@ -434,13 +435,17 @@ int main(int argc, const char* argv[]) {
 
   // Configure video buffer for decoder
   memset(&vb_conf, 0x00, sizeof(vb_conf));
-  vb_conf.u32MaxPoolCnt = 1;
+  vb_conf.u32MaxPoolCnt = 2;
   vb_conf.astCommPool[0].u32BlkCnt = 4;
   vb_conf.astCommPool[0].u32BlkSize = 0;
+  vb_conf.astCommPool[1].u32BlkCnt = 2;
+  vb_conf.astCommPool[1].u32BlkSize = 0;
 
   // Calculate required size for video buffer
   VB_PIC_BLK_SIZE(vdec_max_width, vdec_max_height, codec_id, vb_conf.astCommPool[0].u32BlkSize);
-  printf("> VDEC picture block size = %d\n", vb_conf.astCommPool[0].u32BlkSize);
+  VB_PMV_BLK_SIZE(vdec_max_width, vdec_max_height, codec_id, vb_conf.astCommPool[1].u32BlkSize);
+  printf("> VDEC picture block size = %d, %d\n",
+    vb_conf.astCommPool[0].u32BlkSize, vb_conf.astCommPool[1].u32BlkSize);
 
   ret = HI_MPI_VB_SetModPoolConf(VB_UID_VDEC, &vb_conf);
   if (ret != HI_SUCCESS) {
@@ -679,6 +684,9 @@ int main(int argc, const char* argv[]) {
   uint8_t* write_buffer = malloc(write_buffer_capacity);
   uint32_t write_buffer_size = 0;
 
+  uint32_t index_count = 0;
+  uint32_t frame_count = 0;
+
   while (1) {
     int rx = recv(port, rx_buffer + 8, 4096, 0);
     if (rx <= 0) {
@@ -728,6 +736,22 @@ int main(int argc, const char* argv[]) {
         write_size -= chunk_size;
         write_done += chunk_size;
       }
+    }
+
+    uint8_t type_avc = stream.pu8Addr[4] & 0x1F;
+    uint8_t type_hevc = (stream.pu8Addr[4] >> 1) & 0x3F;
+
+    if (type_avc == 7 || type_hevc == 32) {
+      if (frame_count && index_count) {
+        stream_frames = frame_count / index_count;
+      }
+      index_count = 0;
+      frame_count = 0;
+    } else if (type_avc == 5 || type_hevc == 19) {
+      index_count++;
+      frame_count++;
+    } else if (type_avc == 1 || type_hevc == 1) {
+      frame_count++;
     }
 
     // Send frame into decoder
@@ -1098,6 +1122,10 @@ void* __OSD_THREAD__(void* arg) {
     if (percent > 1) {
       percent = 1;
     }
+
+    memset(hud_frames_rx, 0, sizeof(hud_frames_rx));
+    sprintf(hud_frames_rx, "%d fps", stream_frames);
+    fbg_write(fbg, hud_frames_rx, x_center + 250, 40);
 
     uint32_t width = (strlen(hud_frames_rx) * 16) * percent;
     fbg_rect(fbg, x_center - strlen(hud_frames_rx) / 2 * 16, 64, width, 8, 255, 255, 255);
